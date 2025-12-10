@@ -16,6 +16,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - atatek_network
 
   redis:
     image: redis:7-alpine
@@ -28,6 +30,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - atatek_network
 
   adminer:
     image: adminer:4.8.1
@@ -40,6 +44,8 @@ services:
         condition: service_healthy
     environment:
       - ADMINER_DEFAULT_SERVER=postgres
+    networks:
+      - atatek_network
 
   nginx:
     image: nginx:stable
@@ -72,6 +78,8 @@ services:
       - ../src:/app/src
       - ../alembic:/app/alembic
       - ../alembic.ini:/app/alembic.ini
+    networks:
+      - atatek_network
 
   web:
     image: ghcr.io/karl4th/nextjs-atatek-frontend:latest
@@ -82,6 +90,12 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     restart: unless-stopped
+    networks:
+      - atatek_network
 
 volumes:
   pg_data:
+
+networks:
+  atatek_network:
+    driver: bridge
