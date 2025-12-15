@@ -2,7 +2,7 @@ name: API Rebuild
 
 on:
   repository_dispatch:
-    types: [api-build-complete]
+    types: [backend-build-completes]
 
 env:
   SSH_USER: ${{ secrets.SSH_USER }}
