@@ -2,7 +2,7 @@ name: Alash (Web) Rebuild
 
 on:
   repository_dispatch:
-    types: [alash-build-complete]
+    types: [frontend-build-complete]
 
 env:
   SSH_USER: ${{ secrets.SSH_USER }}
