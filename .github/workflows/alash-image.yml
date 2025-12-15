@@ -1,0 +1,106 @@
+name: Alash (Web) Rebuild
+
+on:
+  repository_dispatch:
+    types: [alash-build-complete]
+
+env:
+  SSH_USER: ${{ secrets.SSH_USER }}
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+  PROJECT_PATH: ${{ secrets.PROJECT_PATH }}
+
+jobs:
+  pull-code:
+    name: Pull Latest Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git pull origin main"
+
+  login-ghcr:
+    name: Login to GHCR
+    runs-on: ubuntu-latest
+    needs: pull-code
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Login to GitHub Container Registry
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "echo ${{ secrets.PACKAGES_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+
+  pull-image:
+    name: Pull Web Image
+    runs-on: ubuntu-latest
+    needs: login-ghcr
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull Web image
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && docker compose pull web"
+
+  restart-container:
+    name: Restart Web Container
+    runs-on: ubuntu-latest
+    needs: pull-image
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Restart Web container
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && docker compose up -d --force-recreate web"
+
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: restart-container
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Cleanup unused images
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker image prune -f"
+
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: cleanup
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify Web is running
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker ps | grep shezhire-web && echo 'Web successfully redeployed'"
