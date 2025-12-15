@@ -1,0 +1,123 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'deploy'
+
+env:
+  SSH_USER: ${{ secrets.SSH_USER }}
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+  PROJECT_PATH: ${{ secrets.PROJECT_PATH }}
+
+jobs:
+  pull-code:
+    name: Pull Latest Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git pull origin main"
+
+  stop-containers:
+    name: Stop Containers
+    runs-on: ubuntu-latest
+    needs: pull-code
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Stop containers
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && docker compose down"
+
+  cleanup-images:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: stop-containers
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Remove old images
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker image prune -af"
+
+  pull-images:
+    name: Pull New Images
+    runs-on: ubuntu-latest
+    needs: cleanup-images
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull new images from GHCR
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && docker compose pull"
+
+  start-containers:
+    name: Start Containers
+    runs-on: ubuntu-latest
+    needs: pull-images
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Start containers
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && docker compose up -d"
+
+  cleanup-volumes:
+    name: Cleanup Unused Volumes
+    runs-on: ubuntu-latest
+    needs: start-containers
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Cleanup unused volumes
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker volume prune -f"
+
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: cleanup-volumes
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Show running containers
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker ps"
