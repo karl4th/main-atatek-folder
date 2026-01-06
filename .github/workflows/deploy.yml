@@ -24,7 +24,7 @@ jobs:
 
       - name: Pull latest code
         run: |
-          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git pull origin main"
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git config --global --add safe.directory ${{ env.PROJECT_PATH }} && git pull origin main"
 
   stop-containers:
     name: Stop Containers
@@ -56,7 +56,7 @@ jobs:
 
       - name: Remove old images
         run: |
-          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker image prune -af"
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker system prune -af --volumes && docker builder prune -af"
 
   pull-images:
     name: Pull New Images
@@ -102,9 +102,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Cleanup unused volumes
+      - name: Final cleanup and disk space check
         run: |
-          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker volume prune -f"
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker system prune -af --volumes && docker builder prune -af && df -h"
 
   verify:
     name: Verify Deployment

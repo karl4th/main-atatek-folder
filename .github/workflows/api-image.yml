@@ -23,7 +23,7 @@ jobs:
 
       - name: Pull latest code
         run: |
-          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git pull origin main"
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ${{ env.PROJECT_PATH }} && git config --global --add safe.directory ${{ env.PROJECT_PATH }} && git pull origin main"
 
   login-ghcr:
     name: Login to GHCR
@@ -101,9 +101,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Cleanup unused images
+      - name: Cleanup unused Docker resources
         run: |
-          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker image prune -f"
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "docker system prune -af --volumes && docker builder prune -af"
 
   verify:
     name: Verify Deployment
