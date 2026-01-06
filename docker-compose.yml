@@ -95,6 +95,18 @@ services:
     networks:
       - atatek_network
 
+  whatsapp:
+    image: ghcr.io/coosby-com/whatsapp-sender:latest
+    restart: unless-stopped
+    volumes:
+      - ./auth:/app/auth
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+    networks:
+      - atatek_network
+
 volumes:
   pg_data:
 
